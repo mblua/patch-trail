@@ -3,8 +3,10 @@
 A VS Code extension for reviewing a `.patch` produced by a coding agent together with the
 agent's trajectory (`.jsonl`).
 
-- **Real line numbers**: every row of the patch shows its line in the original (`a/`) and
-  the new (`b/`) file, plus the hunk side by side.
+- **Real line numbers**: next to every row of the patch, its line in the file: `a 29` for a
+  removed line (original file, `a/`), `b 29` for an added line (new file, `b/`), the plain
+  number for context lines. The strip under the patch hides or shows each gutter column
+  (`#` patch row, `a/b` file line, `T` turn) and shows the cursor position.
 - **Agent blame**: every `+`/`−` line carries a chip with the agent turn that wrote it
   (same color = same turn). The *Why this line exists* panel shows the agent's message,
   its reasoning and the exact command, with the line highlighted.
@@ -13,6 +15,8 @@ agent's trajectory (`.jsonl`).
 - **Cross find**: `Ctrl+F` / `Cmd+F` searches the patch and the trajectory at the same time.
 - **Exact references**: select text in a step and press **Copy reference** to copy
   `file.jsonl:line › payload.field › line:col` together with the text, ready to paste.
+  In the patch, **Copy reference** (next to **Details**) copies the cursor row, or the text
+  selected in it, as `run.patch:1209:36-62 → path/to/file.rs:29:35-61`, with its turn and text.
 - **Show / hide panes** with the three layout buttons in the editor title bar (top right):
   the patch, the trajectory and the line details panel (position, *Why this line exists*,
   hunk side by side). The panel also closes with its `✕`, the **Details** button in the

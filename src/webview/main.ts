@@ -4,7 +4,7 @@
 import "./style.css";
 import { describe, parsePatch, rangeText, sideBySide, type PatchLine, type PatchModel, type Hunk } from "../core/patch";
 import { fieldPath, fields, link, locateInCommand, parseTrajectory, stepLabel, type LinkResult, type Origin, type Step, type Trajectory } from "../core/trajectory";
-import { makeReference, referenceText, type TextReference } from "../core/reference";
+import { fileLineOf, makeReference, patchLineReference, referenceText, rowPosition, type RowSelection, type TextReference } from "../core/reference";
 import type { HostToWebview, SiblingInfo, WebviewToHost, TrajectorySource } from "../messages";
 
 interface VsCodeApi { postMessage(msg: unknown): void; getState(): unknown; setState(s: unknown): void }
@@ -13,8 +13,10 @@ const vscode = acquireVsCodeApi();
 const post = (m: WebviewToHost) => vscode.postMessage(m);
 
 // ---------------------------------------------------------------- state
-interface UiState { row: number; showPatch: boolean; showTraj: boolean; showDetails: boolean; split: number; follow: boolean; filter: Filter }
+interface UiState { row: number; showPatch: boolean; showTraj: boolean; showDetails: boolean; split: number; follow: boolean; filter: Filter; hiddenCols: GutterCol[] }
 type Filter = "all" | "model" | "cmd" | "write" | "hits";
+/** Gutter columns of the patch: patch row, line in the file, turn that wrote the line. */
+type GutterCol = "row" | "file" | "turn";
 const saved = (vscode.getState() || {}) as Partial<UiState>;
 const ui: UiState = {
   row: saved.row ?? 1,
@@ -24,6 +26,7 @@ const ui: UiState = {
   split: saved.split ?? 52,
   follow: saved.follow ?? document.body.dataset.follow !== "false",
   filter: saved.filter ?? "all",
+  hiddenCols: saved.hiddenCols ?? [],
 };
 const persist = () => vscode.setState(ui);
 
@@ -104,11 +107,12 @@ $("#app").innerHTML = `
 <div class="shell">
   <div class="groups" id="groups">
     <section class="group" id="g-patch">
-      <div class="g-head"><span class="crumb" id="crumb"></span><span class="g-actions"><button id="toggle-details" class="tgl" title="Show or hide the line details panel (D)">Details</button><button id="hide-patch" title="Hide the patch (also in the editor title bar)">✕</button></span></div>
+      <div class="g-head"><span class="crumb" id="crumb"></span><span class="g-actions"><button id="copy-line-ref" class="tgl" title="Copy a reference to the cursor line, or to the text selected in it">Copy reference</button><button id="toggle-details" class="tgl" title="Show or hide the line details panel (D)">Details</button><button id="hide-patch" title="Hide the patch (also in the editor title bar)">✕</button></span></div>
       <div class="patch-content" id="patch-content">
         <div class="editor-wrap">
           <div class="find" id="find-patch"></div>
           <div class="editor" id="editor" tabindex="0"><div class="spacer" id="spacer"><div class="rows" id="rows"></div></div></div>
+          <div class="colbar" id="colbar"></div>
         </div>
         <div class="pos-panel" id="pos-panel">
           <div class="pp-left"><div class="pos-card" id="pos-card"></div><div class="link-box" id="link-box"></div></div>
@@ -215,12 +219,91 @@ function lineTextHTML(L: PatchLine): string {
   const cur = S.pMatches[S.pCur];
   return hl(L.text, [], cur && cur.row === L.row ? cur.idx : -1);
 }
+/** Line in the file: "a 29" for a removed line (original file), "b 29" for an added one (new file), the new number for context. */
+function fileCell(L: PatchLine): string {
+  const f = fileLineOf(L);
+  if (f) {
+    const cls = L.kind === "del" ? " old" : L.kind === "add" ? " new" : "";
+    const mark = L.kind === "del" ? "a" : L.kind === "add" ? "b" : "";
+    const title = L.kind === "del" ? "Line " + f.line + " of the original file (a/)" : L.kind === "add" ? "Line " + f.line + " of the new file (b/)" : "Line " + f.line + " of the new file (line " + L.old + " of the original)";
+    return '<span class="g-file' + cls + '" title="' + title + '"><span class="side">' + mark + "</span>" + f.line + "</span>";
+  }
+  if (L.kind === "hunk" && L.hunk) return '<span class="g-file hk" title="The hunk starts at line ' + L.hunk.newStart + ' of the new file">' + L.hunk.newStart + "</span>";
+  return '<span class="g-file"></span>';
+}
 function lineHTML(L: PatchLine): string {
   const runs = originOf(line(ui.row))?.step;
   const inRun = runs && originOf(L)?.step === runs;
+  const hid = ui.hiddenCols;
   return '<div class="ln k-' + L.kind + (L.row === ui.row ? " cur" : "") + (inRun ? " linkrun" : "") + '" data-row="' + L.row + '">' +
-    '<span class="g-row">' + L.row + "</span>" + blameCell(L) + '<span class="txt">' + lineTextHTML(L) + "</span></div>";
+    (hid.includes("row") ? "" : '<span class="g-row">' + L.row + "</span>") +
+    (hid.includes("file") ? "" : fileCell(L)) +
+    (hid.includes("turn") ? "" : blameCell(L)) +
+    '<span class="txt">' + lineTextHTML(L) + "</span></div>";
 }
+
+// ---------------------------------------------------------------- gutter columns + cursor position strip
+const COLS: { key: GutterCol; label: string; name: string; width: number }[] = [
+  { key: "row", label: "#", name: "patch row", width: 56 },
+  { key: "file", label: "a/b", name: "file line", width: 64 },
+  { key: "turn", label: "T", name: "turn", width: 74 },
+];
+function renderColbar(): void {
+  $("#colbar").innerHTML = COLS.map((c) => {
+    const off = ui.hiddenCols.includes(c.key);
+    return '<button data-col="' + c.key + '" class="' + (off ? "off" : "") + '"' + (off ? "" : ' style="width:' + c.width + 'px"') +
+      ' title="' + (off ? "Show" : "Hide") + " the " + c.name + ' column">' + (off ? "+ " + c.label : esc(c.label) + ' <span class="x">✕</span>') + "</button>";
+  }).join("") + '<span class="pos" id="cursor-pos"></span>';
+  updateCursorPos();
+}
+function updateCursorPos(): void {
+  const el = document.getElementById("cursor-pos");
+  if (!el) return;
+  el.textContent = S.pm && S.pm.lines.length ? rowPosition(line(ui.row), baseName) : "";
+  el.title = el.textContent;
+}
+$("#colbar").addEventListener("mousedown", (e) => e.preventDefault());
+$("#colbar").addEventListener("click", (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>("button[data-col]");
+  if (!b) return;
+  const k = b.dataset.col as GutterCol;
+  ui.hiddenCols = ui.hiddenCols.includes(k) ? ui.hiddenCols.filter((x) => x !== k) : [...ui.hiddenCols, k];
+  persist();
+  renderColbar();
+  renderRows(true);
+});
+
+// ---------------------------------------------------------------- copy a reference to the cursor row
+/** Text selected inside a single patch row, with its offsets in the row text. */
+function rowSelection(): { L: PatchLine; sel: RowSelection } | null {
+  const s = window.getSelection();
+  if (!S.pm || !s || s.isCollapsed || !s.rangeCount) return null;
+  const r = s.getRangeAt(0);
+  const startEl = r.startContainer.nodeType === Node.ELEMENT_NODE ? (r.startContainer as Element) : r.startContainer.parentElement;
+  const txt = startEl?.closest<HTMLElement>(".ln .txt");
+  if (!txt || !txt.contains(r.endContainer)) return null;
+  const L = line(+txt.parentElement!.dataset.row!);
+  const pre = document.createRange();
+  pre.selectNodeContents(txt);
+  pre.setEnd(r.startContainer, r.startOffset);
+  const start = pre.toString().length, text = r.toString();
+  if (!text || L.text.slice(start, start + text.length) !== text) return null;
+  return { L, sel: { start, end: start + text.length, text } };
+}
+function copyLineReference(): void {
+  if (!S.pm || !S.pm.lines.length) return;
+  const picked = rowSelection();
+  const L = picked ? picked.L : line(ui.row);
+  const o = originOf(L);
+  const turn = o ? { turn: o.step.turn, trajectory: S.trName, line: o.step.line, inferred: o.inferred } : null;
+  const text = patchLineReference(S.patchName, L, picked?.sel, turn);
+  const short = text.split("\n")[0].replace(/^Reference: /, "");
+  post({ type: "copy", text, label: "reference to patch row " + L.row });
+  (window as unknown as { __lastLineRef?: string }).__lastLineRef = text;
+  toast("Reference copied: <code>" + esc(short) + "</code>" + (picked ? " + the selected text" : " + the line"));
+}
+$("#copy-line-ref").addEventListener("mousedown", (e) => e.preventDefault()); // keep the selection
+$("#copy-line-ref").addEventListener("click", copyLineReference);
 function renderRows(force = false): void {
   if (!S.pm) return;
   const n = S.pm.lines.length;
@@ -271,6 +354,7 @@ function setRow(r: number, opts: { center?: boolean; fromTraj?: boolean } = {}):
   persist();
   if (ui.showPatch) revealRow(r, opts.center);
   markRows();
+  updateCursorPos();
   updatePatchPanels(opts);
 }
 function hunkNav(dir: number): void {
@@ -830,6 +914,7 @@ window.addEventListener("message", (ev: MessageEvent<HostToWebview>) => {
 });
 
 setFocus("patch");
+renderColbar();
 applyLayout();
 renderTrajectoryPane();
 post({ type: "ready" });

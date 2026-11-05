@@ -586,7 +586,14 @@ const DETAIL_CLIP = 200_000;
 function jumpPatchToStep(s: Step): void {
   if (!s.patchRows.length) { toast("This step did not write any patch line."); return; }
   if (!ui.showPatch) toggle("patch", true);
-  setRow(s.patchRows[0], { center: true, fromTraj: true });
+  // With an active search, prefer the first line written by this step that contains the query.
+  const rows = new Set(s.patchRows);
+  const m = S.q ? S.pMatches.findIndex((x) => rows.has(x.row)) : -1;
+  if (m === -1) { setRow(s.patchRows[0], { center: true, fromTraj: true }); return; }
+  S.pCur = m;
+  setRow(S.pMatches[m].row, { center: true, fromTraj: true });
+  renderRows(true);
+  updateFindWidgets();
 }
 function summaryHTML(): string {
   const tr = S.tr!, m = tr.manifest as Record<string, unknown> | null, v = tr.verdict as Record<string, unknown> | null;
@@ -663,7 +670,7 @@ const Table = {
       "<td>" + s.line + "</td><td>" + (s.seq ?? "") + "</td><td>" + (s.turn != null ? '<span class="tag" style="background:' + turnColor(s.turn) + ';color:#111">T' + s.turn + "</span>" : "") + "</td>" +
       '<td><span class="tag r-' + s.role + '">' + s.role + "</span></td>" +
       '<td class="sum">' + hl(clip(this.summary(s), 220)) + "</td><td>" + (s.exit ?? "") + "</td><td>" + fmtMs(s.latencyMs) + "</td>" +
-      "<td>" + (s.patchRows.length ? '<span class="wchip" data-w="1" title="Go to the first patch line written by this step">✎ ' + s.patchRows.length + "</span>" : "") +
+      "<td>" + (s.patchRows.length ? '<span class="wchip" data-w="1" title="Go to the first patch line written by this step (the first one with the search text, if any)">✎ ' + s.patchRows.length + "</span>" : "") +
       (h ? ' <span class="hitchip">⌕ ' + h + "</span>" : "") + "</td></tr>";
   },
   render(): void {

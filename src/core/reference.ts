@@ -61,6 +61,12 @@ export function fileLineOf(L: PatchLine): { line: number; side: "a" | "b" } | nu
   return null;
 }
 
+/** Short reference to the file line of a row, e.g. "src/record/recorder.rs:29 (patch)"; null for header rows. */
+export function fileLineReference(L: PatchLine): string | null {
+  const fl = fileLineOf(L);
+  return fl ? sidePath(L) + ":" + fl.line + " (patch)" : null;
+}
+
 /**
  * Short position of a row, e.g. "patch row 1209 · recorder.rs:29 (new)".
  * `base` turns a path into the name to show.

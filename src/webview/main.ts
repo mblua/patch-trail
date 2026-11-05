@@ -4,7 +4,7 @@
 import "./style.css";
 import { describe, parsePatch, rangeText, sideBySide, type PatchLine, type PatchModel, type Hunk } from "../core/patch";
 import { fieldPath, fields, link, locateInCommand, parseTrajectory, stepLabel, type LinkResult, type Origin, type Step, type Trajectory } from "../core/trajectory";
-import { fileLineOf, makeReference, patchLineReference, referenceText, rowPosition, type RowSelection, type TextReference } from "../core/reference";
+import { fileLineOf, fileLineReference, makeReference, patchLineReference, referenceText, rowPosition, type RowSelection, type TextReference } from "../core/reference";
 import type { HostToWebview, SiblingInfo, WebviewToHost, TrajectorySource } from "../messages";
 
 interface VsCodeApi { postMessage(msg: unknown): void; getState(): unknown; setState(s: unknown): void }
@@ -236,7 +236,10 @@ function lineHTML(L: PatchLine): string {
   const runs = originOf(line(ui.row))?.step;
   const inRun = runs && originOf(L)?.step === runs;
   const hid = ui.hiddenCols;
-  return '<div class="ln k-' + L.kind + (L.row === ui.row ? " cur" : "") + (inRun ? " linkrun" : "") + '" data-row="' + L.row + '">' +
+  // Native context menu: VS Code passes this object to patchTrail.copyRowReference ("Copy Reference").
+  const ref = fileLineReference(L);
+  const ctx = ref ? ' data-vscode-context="' + esc(JSON.stringify({ webviewSection: "patchRow", ref })) + '"' : "";
+  return '<div class="ln k-' + L.kind + (L.row === ui.row ? " cur" : "") + (inRun ? " linkrun" : "") + '" data-row="' + L.row + '"' + ctx + ">" +
     (hid.includes("row") ? "" : '<span class="g-row">' + L.row + "</span>") +
     (hid.includes("file") ? "" : fileCell(L)) +
     (hid.includes("turn") ? "" : blameCell(L)) +

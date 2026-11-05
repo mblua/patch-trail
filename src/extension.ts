@@ -75,6 +75,11 @@ export function activate(context: vscode.ExtensionContext): PatchTrailApi {
       s.post({ type: "find" });
     }),
 
+    vscode.commands.registerCommand("patchTrail.copyRowReference", async (ctx?: { ref?: unknown }) => {
+      if (typeof ctx?.ref !== "string") return;
+      await vscode.env.clipboard.writeText(ctx.ref);
+      vscode.window.setStatusBarMessage("Copied: " + ctx.ref, 3000);
+    }),
     vscode.commands.registerCommand("patchTrail.togglePatch", () => needSession()?.setPane("patch")),
     vscode.commands.registerCommand("patchTrail.toggleTrajectory", () => needSession()?.setPane("trajectory")),
     vscode.commands.registerCommand("patchTrail.toggleDetails", () => needSession()?.setPane("details")),

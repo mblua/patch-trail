@@ -13,6 +13,8 @@
 - File line number column in the patch (`a 29` / `b 29`), with buttons to hide the patch row,
   file line and turn columns, and the cursor position next to them.
 - **Copy reference** for the cursor row of the patch (or the text selected in it).
+- **Copy Reference** in the right-click menu of a patch row: `path/to/file.rs:29 (patch)`.
+- With an active search, a step's `✎` chip jumps to its first patch line with a match.
 - The turn chip stays pinned at the top while rows of its turn are still on screen.
 - Patch Trail activity bar icon: sidebar with the workspace patches and the current patch
   (trajectory, pane checkboxes, change / reset trajectory, find).

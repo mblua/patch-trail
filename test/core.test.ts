@@ -1,7 +1,7 @@
 import { describe as suite, expect, it } from "vitest";
 import { describe, parsePatch, rangeText, sideBySide } from "../src/core/patch";
 import { fieldPath, fields, link, locateInCommand, parseTrajectory, stepLabel } from "../src/core/trajectory";
-import { fileLineOf, lineCol, makeReference, patchLineReference, referenceText, rowPosition } from "../src/core/reference";
+import { fileLineOf, fileLineReference, lineCol, makeReference, patchLineReference, referenceText, rowPosition } from "../src/core/reference";
 import { PATCH, TRAJECTORY } from "./fixtures";
 
 const rowOf = (pm: ReturnType<typeof parsePatch>, text: string) => {
@@ -182,6 +182,14 @@ suite("patch row references", () => {
     const out = patchLineReference("run.patch", added, { start, end: start + 6, text: "return" });
     expect(out).toContain("Reference: run.patch:10:6-11 → src/greeter.py:4:5-10 (new file b/, added line)");
     expect(out).toContain("```\nreturn\n```");
+  });
+
+  it("gives a short file line reference for the row context menu", () => {
+    expect(fileLineReference(added)).toBe("src/greeter.py:4 (patch)");
+    expect(fileLineReference(removed)).toBe("src/greeter.py:2 (patch)");
+    expect(fileLineReference(context)).toBe("src/greeter.py:5 (patch)");
+    expect(fileLineReference(pm.lines[4])).toBeNull();
+    expect(fileLineReference(pm.lines[0])).toBeNull();
   });
 
   it("references header rows and new files", () => {

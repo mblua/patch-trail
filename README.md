@@ -18,6 +18,7 @@ agent's trajectory (`.jsonl`).
   `file.jsonl:line › payload.field › line:col` together with the text, ready to paste.
   In the patch, **Copy reference** (next to **Details**) copies the cursor row, or the text
   selected in it, as `run.patch:1209:36-62 → path/to/file.rs:29:35-61`, with its turn and text.
+  Right-click a patch row and pick **Copy Reference** for the short form, `path/to/file.rs:29 (patch)`.
 - **Show / hide panes** with the three layout buttons in the editor title bar (top right):
   the patch, the trajectory and the line details panel (position, *Why this line exists*,
   hunk side by side). The panel also closes with its `✕`, the **Details** button in the

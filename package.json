@@ -72,6 +72,11 @@
         "category": "Patch Trail"
       },
       {
+        "command": "patchTrail.copyRowReference",
+        "title": "Copy Reference",
+        "category": "Patch Trail"
+      },
+      {
         "command": "patchTrail.togglePatch",
         "title": "Show/Hide Patch",
         "category": "Patch Trail"
@@ -195,7 +200,18 @@
           "group": "navigation@20"
         }
       ],
+      "webview/context": [
+        {
+          "command": "patchTrail.copyRowReference",
+          "when": "webviewId == 'patchTrail.patchView' && webviewSection == 'patchRow'",
+          "group": "9_cutcopypaste@9"
+        }
+      ],
       "commandPalette": [
+        {
+          "command": "patchTrail.copyRowReference",
+          "when": "false"
+        },
         {
           "command": "patchTrail.openInPatchTrail",
           "when": "resourceExtname =~ /^.(patch|diff)$/ || activeCustomEditorId != patchTrail.patchView"

@@ -123,6 +123,15 @@ test("editor-only commands run without errors", async () => {
   await vscode.commands.executeCommand("patchTrail.focusCurrent");
 });
 
+test("the row context menu command copies the short file line reference", async () => {
+  const pkg = vscode.extensions.all.find((e) => e.id.toLowerCase() === "mblua.patch-trail")!.packageJSON;
+  const item = pkg.contributes.menus["webview/context"].find((m: { command: string }) => m.command === "patchTrail.copyRowReference");
+  if (!item || !String(item.when).includes("webviewSection == 'patchRow'")) throw new Error("webview/context entry missing");
+  await vscode.commands.executeCommand("patchTrail.copyRowReference", { webviewSection: "patchRow", ref: "src/greeter.py:4 (patch)" });
+  const got = await vscode.env.clipboard.readText();
+  if (got !== "src/greeter.py:4 (patch)") throw new Error("clipboard has " + JSON.stringify(got));
+});
+
 test("reopens the patch as plain text", async () => {
   await vscode.commands.executeCommand("patchTrail.openInPatchTrail", vscode.Uri.file(withDefault));
   await waitFor("Patch Trail active", () => activeTabViewType() === "patchTrail.patchView");

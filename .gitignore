@@ -1,0 +1,17 @@
+# Build output
+dist/
+out/
+*.vsix
+node_modules/
+
+# Dev harness: embeds the patch and trajectory it was built with. Never commit it.
+.harness/
+.vscode-test/
+
+# Input data: real patches and trajectories never go in this repository.
+*.patch
+*.diff
+*.jsonl
+*.ndjson
+
+.DS_Store

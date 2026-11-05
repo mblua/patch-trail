@@ -1,0 +1,354 @@
+{
+  "name": "patch-trail",
+  "displayName": "Patch Trail",
+  "description": "Read a coding agent's .patch with real old/new line numbers and blame every line to the trajectory step that wrote it.",
+  "version": "0.1.0",
+  "publisher": "mblua",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mblua/patch-trail.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "patch",
+    "diff",
+    "trajectory",
+    "agent",
+    "blame",
+    "jsonl"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "patchTrail.patchView",
+        "displayName": "Patch Trail",
+        "selector": [
+          {
+            "filenamePattern": "*.patch"
+          },
+          {
+            "filenamePattern": "*.diff"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "commands": [
+      {
+        "command": "patchTrail.openInPatchTrail",
+        "title": "Open in Patch Trail",
+        "category": "Patch Trail",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "patchTrail.reopenAsText",
+        "title": "Reopen as Text",
+        "category": "Patch Trail",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "patchTrail.associateTrajectory",
+        "title": "Associate Trajectory…",
+        "category": "Patch Trail",
+        "icon": "$(link)"
+      },
+      {
+        "command": "patchTrail.resetTrajectory",
+        "title": "Reset Trajectory Association",
+        "category": "Patch Trail"
+      },
+      {
+        "command": "patchTrail.find",
+        "title": "Find in Patch and Trajectory",
+        "category": "Patch Trail"
+      },
+      {
+        "command": "patchTrail.togglePatch",
+        "title": "Show/Hide Patch",
+        "category": "Patch Trail"
+      },
+      {
+        "command": "patchTrail.toggleTrajectory",
+        "title": "Show/Hide Trajectory",
+        "category": "Patch Trail"
+      },
+      {
+        "command": "patchTrail.toggleDetails",
+        "title": "Show/Hide Line Details",
+        "category": "Patch Trail"
+      },
+      {
+        "command": "patchTrail.openPatchFile",
+        "title": "Open a Patch…",
+        "category": "Patch Trail",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "patchTrail.refreshPatches",
+        "title": "Refresh",
+        "category": "Patch Trail",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "patchTrail.focusCurrent",
+        "title": "Show Current Patch",
+        "category": "Patch Trail"
+      },
+      {
+        "command": "patchTrail.hidePatch",
+        "title": "Hide Patch",
+        "category": "Patch Trail",
+        "icon": "$(layout-sidebar-left)"
+      },
+      {
+        "command": "patchTrail.showPatch",
+        "title": "Show Patch",
+        "category": "Patch Trail",
+        "icon": "$(layout-sidebar-left-off)"
+      },
+      {
+        "command": "patchTrail.hideTrajectory",
+        "title": "Hide Trajectory",
+        "category": "Patch Trail",
+        "icon": "$(layout-sidebar-right)"
+      },
+      {
+        "command": "patchTrail.showTrajectory",
+        "title": "Show Trajectory",
+        "category": "Patch Trail",
+        "icon": "$(layout-sidebar-right-off)"
+      },
+      {
+        "command": "patchTrail.hideDetails",
+        "title": "Hide Line Details",
+        "category": "Patch Trail",
+        "icon": "$(layout-panel)"
+      },
+      {
+        "command": "patchTrail.showDetails",
+        "title": "Show Line Details",
+        "category": "Patch Trail",
+        "icon": "$(layout-panel-off)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "patchTrail.hidePatch",
+          "when": "activeCustomEditorId == patchTrail.patchView && patchTrail.patchVisible",
+          "group": "navigation@-3"
+        },
+        {
+          "command": "patchTrail.showPatch",
+          "when": "activeCustomEditorId == patchTrail.patchView && !patchTrail.patchVisible",
+          "group": "navigation@-3"
+        },
+        {
+          "command": "patchTrail.hideTrajectory",
+          "when": "activeCustomEditorId == patchTrail.patchView && patchTrail.trajectoryVisible",
+          "group": "navigation@-2"
+        },
+        {
+          "command": "patchTrail.showTrajectory",
+          "when": "activeCustomEditorId == patchTrail.patchView && !patchTrail.trajectoryVisible",
+          "group": "navigation@-2"
+        },
+        {
+          "command": "patchTrail.hideDetails",
+          "when": "activeCustomEditorId == patchTrail.patchView && patchTrail.detailsVisible",
+          "group": "navigation@-1"
+        },
+        {
+          "command": "patchTrail.showDetails",
+          "when": "activeCustomEditorId == patchTrail.patchView && !patchTrail.detailsVisible",
+          "group": "navigation@-1"
+        },
+        {
+          "command": "patchTrail.openInPatchTrail",
+          "when": "resourceExtname =~ /^\\.(patch|diff)$/ && activeEditor == workbench.editors.files.textFileEditor",
+          "group": "navigation"
+        },
+        {
+          "command": "patchTrail.associateTrajectory",
+          "when": "activeCustomEditorId == patchTrail.patchView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "patchTrail.reopenAsText",
+          "when": "activeCustomEditorId == patchTrail.patchView",
+          "group": "navigation@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "patchTrail.openInPatchTrail",
+          "when": "resourceExtname =~ /^\\.(patch|diff)$/",
+          "group": "navigation@20"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "patchTrail.openInPatchTrail",
+          "when": "resourceExtname =~ /^.(patch|diff)$/ || activeCustomEditorId != patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.reopenAsText",
+          "when": "activeCustomEditorId == patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.associateTrajectory",
+          "when": "activeCustomEditorId == patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.resetTrajectory",
+          "when": "activeCustomEditorId == patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.find",
+          "when": "activeCustomEditorId == patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.togglePatch",
+          "when": "activeCustomEditorId == patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.toggleTrajectory",
+          "when": "activeCustomEditorId == patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.toggleDetails",
+          "when": "activeCustomEditorId == patchTrail.patchView"
+        },
+        {
+          "command": "patchTrail.refreshPatches",
+          "when": "false"
+        },
+        {
+          "command": "patchTrail.focusCurrent",
+          "when": "false"
+        },
+        {
+          "command": "patchTrail.hidePatch",
+          "when": "false"
+        },
+        {
+          "command": "patchTrail.showPatch",
+          "when": "false"
+        },
+        {
+          "command": "patchTrail.hideTrajectory",
+          "when": "false"
+        },
+        {
+          "command": "patchTrail.showTrajectory",
+          "when": "false"
+        },
+        {
+          "command": "patchTrail.hideDetails",
+          "when": "false"
+        },
+        {
+          "command": "patchTrail.showDetails",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "patchTrail.openPatchFile",
+          "when": "view == patchTrail.patches",
+          "group": "navigation@1"
+        },
+        {
+          "command": "patchTrail.refreshPatches",
+          "when": "view == patchTrail.patches",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "patchTrail.find",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "activeCustomEditorId == patchTrail.patchView"
+      }
+    ],
+    "configuration": {
+      "title": "Patch Trail",
+      "properties": {
+        "patchTrail.trajectorySuffix": {
+          "type": "string",
+          "default": ".trajectory.jsonl",
+          "description": "The default trajectory of a patch is the patch path plus this suffix (e.g. run.patch → run.patch.trajectory.jsonl)."
+        },
+        "patchTrail.followCursor": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the cursor moves to a +/- line, select the trajectory step that wrote it."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "patchTrail",
+          "title": "Patch Trail",
+          "icon": "media/patch-trail.svg"
+        }
+      ]
+    },
+    "views": {
+      "patchTrail": [
+        {
+          "id": "patchTrail.patches",
+          "name": "Patches",
+          "icon": "media/patch-trail.svg"
+        },
+        {
+          "id": "patchTrail.current",
+          "name": "Current Patch",
+          "icon": "media/patch-trail.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "patchTrail.patches",
+        "contents": "No .patch or .diff files in this workspace.\n[Open a Patch…](command:patchTrail.openPatchFile)"
+      },
+      {
+        "view": "patchTrail.current",
+        "contents": "No patch is open in Patch Trail yet.\n[Open a Patch…](command:patchTrail.openPatchFile)\nOr pick one from Patches above, or click Open in Patch Trail in the title bar of a .patch file."
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "npm run build && node scripts/integration.mjs",
+    "check": "npm run typecheck && npm test && npm run build",
+    "harness": "node scripts/harness.mjs",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "node esbuild.mjs --production"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "~1.90.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

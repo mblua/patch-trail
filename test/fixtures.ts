@@ -58,3 +58,53 @@ export const TRAJECTORY = rows.map((r) => JSON.stringify(r)).join("\n") + "\nthi
   JSON.stringify({ type: "verdict", pass: true, output: "[PASS] greet-validates-name" }) + "\n";
 
 export { WRITE_GREETER, WRITE_README };
+
+// The same change made by Claude Code, as its on-disk session file: each content block of a
+// response is its own line (same message id), tool results come back as "user" lines.
+const CWD = "C:\\work\\greeter";
+const meta = { cwd: CWD, sessionId: "sess-0001", version: "2.0.0", gitBranch: "main" };
+const say = (id: string, block: unknown, usage?: unknown) => ({
+  ...meta, type: "assistant", timestamp: "2026-01-01T10:00:0" + id.slice(-1) + "Z",
+  message: { id, role: "assistant", model: "claude-example", content: [block], ...(usage ? { usage } : {}) },
+});
+const result = (id: string, content: string, isError = false) =>
+  ({ ...meta, type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content, is_error: isError }] } });
+
+const claudeRows: unknown[] = [
+  { type: "summary", summary: "Greeter validation", leafUuid: "u-9" },
+  { ...meta, type: "user", message: { role: "user", content: "Validate the name in greet() and add a README." }, timestamp: "2026-01-01T10:00:00Z" },
+  say("msg_1", { type: "thinking", thinking: "I should inspect src/greeter.py first." }, { input_tokens: 100, output_tokens: 20 }),
+  say("msg_1", { type: "tool_use", id: "tu_1", name: "Read", input: { file_path: CWD + "\\src\\greeter.py" } }, { input_tokens: 100, output_tokens: 20 }),
+  result("tu_1", '1\tdef greet(name):\n2\t    return "Hello " + name\n'),
+  say("msg_2", { type: "text", text: "I will validate the name and change the greeting." }),
+  say("msg_2", {
+    type: "tool_use", id: "tu_2", name: "Edit", input: {
+      file_path: CWD + "\\src\\greeter.py",
+      old_string: '    return "Hello " + name',
+      new_string: '    if not name:\n        raise ValueError("name must not be empty")\n    return f"Hello, {name}!"',
+    },
+  }),
+  result("tu_2", "The file was updated."),
+  say("msg_3", { type: "text", text: "Now a README." }),
+  say("msg_3", { type: "tool_use", id: "tu_3", name: "Write", input: { file_path: CWD + "\\README.md", content: "# Greeter\nA tiny greeting library used in tests.\n" } }),
+  result("tu_3", "File created."),
+  say("msg_4", { type: "text", text: "Done." }),
+];
+
+export const CLAUDE_TRAJECTORY = claudeRows.map((r) => JSON.stringify(r)).join("\n") + "\n";
+
+// The output of "claude -p --output-format stream-json --verbose" for a similar session.
+export const CLAUDE_STREAM = [
+  { type: "system", subtype: "init", session_id: "sess-0002", cwd: "/work/greeter", model: "claude-example", claude_code_version: "2.0.0", tools: ["Bash", "Edit", "Write"] },
+  {
+    type: "assistant", session_id: "sess-0002",
+    message: {
+      id: "msg_a", role: "assistant", model: "claude-example", content: [
+        { type: "text", text: "Adding a README." },
+        { type: "tool_use", id: "tu_a", name: "Bash", input: { command: "cat > README.md <<'EOF'\n# Greeter\nA tiny greeting library used in tests.\nEOF" } },
+      ],
+    },
+  },
+  { type: "user", session_id: "sess-0002", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "tu_a", content: [{ type: "text", text: "" }] }] } },
+  { type: "result", subtype: "success", is_error: false, duration_ms: 4000, result: "Done.", total_cost_usd: 0.01, session_id: "sess-0002" },
+].map((r) => JSON.stringify(r)).join("\n") + "\n";

@@ -1,7 +1,8 @@
 # Patch Trail
 
 A VS Code extension for reviewing a `.patch` produced by a coding agent together with the
-agent's trajectory (`.jsonl`).
+agent's trajectory (`.jsonl`): Claude Code sessions and harness exports are supported (see
+[Trajectory schemas](#trajectory-schemas)).
 
 - **Real line numbers**: next to every row of the patch, its line in the file: `a 29` for a
   removed line (original file, `a/`), `b 29` for an added line (new file, `b/`), the plain
@@ -72,19 +73,50 @@ To always open patches in Patch Trail, add this to your settings:
 | `patchTrail.trajectorySuffix` | `.trajectory.jsonl` | Suffix that turns a patch path into its default trajectory path |
 | `patchTrail.followCursor` | `true` | Select the step that wrote the line under the cursor |
 
-## Trajectory format
+## Trajectory schemas
 
-One JSON object per line. Patch Trail understands the shape used by
-[mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent)-style harnesses:
+Every coding agent writes its trajectory in its own format. Patch Trail reads each format with a
+**schema** and detects the right one from the first lines of the file (the trajectory pane shows
+which one it used). Supported schemas:
+
+### Claude Code session
+
+The session files Claude Code keeps on disk (`~/.claude/projects/<project>/<session-id>.jsonl`)
+and the output of `claude -p --output-format stream-json --verbose`.
+
+- A turn is one model response: its reasoning and text are the turn's message, its tool calls are
+  the turn's commands, and tool results are shown as events of the same turn.
+- Files written with `Write`, `Edit`, `MultiEdit` and `NotebookEdit` are attributed like shell
+  writes: the tool call is rendered as a command that holds the written text (`Edit` shows the
+  old and the new string), with paths relative to the session directory.
+- The run summary comes from the session: model, Claude Code version, session id, first prompt.
+
+To get a patch for a session, run `git diff` in the repository the agent changed (use
+`git add -N <file>` first so new files are included).
+
+### Harness JSONL
+
+One JSON object per line, as exported by evaluation harnesses that run a shell-only agent:
 
 - `{"type": "manifest", ...}`: run metadata (`task_title`, `model`, `scaffold`, `run_id`, `timings`).
 - `{"type": "step", "seq": n, "payload": {"step": "model:N", "text": "...", "thought": "..."}}`: an agent turn.
 - `{"type": "step", "payload": {"step": "model:N:bash", "command": "...", "output": "...", "exit_code": 0}}`: a command of turn N.
 - `{"type": "verdict", "pass": true, "output": "..."}`: the grading result.
 
-Other lines are shown as events. A patch line is attributed to the first command that writes
-files (`open(path, "w")`, `sed -i`, `cat >`, `tee`, `git apply`, …) and contains its text.
-Short lines such as `}` inherit the turn of their neighbours and are shown dimmed.
+Other lines are shown as events.
+
+### How lines are attributed
+
+A patch line is attributed to the first command that writes files (`Write` / `Edit` tool calls,
+or shell commands such as `open(path, "w")`, `sed -i`, `cat >`, `tee`, `git apply`, …) and
+contains its text. Short lines such as `}` inherit the turn of their neighbours and are shown
+dimmed.
+
+### Adding a schema
+
+A schema lives in `src/core/schemas/` and implements `TrajectorySchema` (`detect` scores how well
+the first lines match, `parse` turns the lines into steps). Register it in
+`src/core/schemas/index.ts` and add a synthetic fixture to `test/fixtures.ts`.
 
 ## Development
 

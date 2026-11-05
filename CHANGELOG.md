@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Trajectory schemas: the format of a trajectory is detected from the file, and each format is
+  read by its own schema (`src/core/schemas/`).
+- Claude Code sessions (on-disk `.jsonl` and `stream-json` output): turns, reasoning, tool calls
+  and results; lines written with `Write` / `Edit` / `MultiEdit` / `NotebookEdit` are attributed
+  to their turn.
+- The trajectory summary shows the schema in use; short runs show their length in seconds.
+
 ## 0.1.0
 
 - Patch Trail custom editor for `.patch` and `.diff` files.

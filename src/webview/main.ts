@@ -564,8 +564,8 @@ function renderWhy(L: PatchLine): void {
     " · line " + s.line + " of the trajectory" + (o.inferred ? ' <span class="muted">(inherited from the neighbouring line)</span>' : "") +
     (o.candidates > 1 ? ' <span class="muted">(text found in ' + o.candidates + " write commands; showing the first)</span>" : "") +
     ' · <a data-lk="reveal">show in table</a></div>' +
-    (turn && turn.model.text ? '<div class="turn-text">“' + hl(clip(turn.model.text, 700)) + "”</div>" : "") +
-    (turn && turn.model.thought ? "<details><summary>Agent reasoning (" + turn.model.thought.length + ' characters)</summary><div class="thought">' + hl(clip(turn.model.thought, 4000)) + "</div></details>" : "") +
+    (turn && turn.text ? '<div class="turn-text">“' + hl(clip(turn.text, 700)) + "”</div>" : "") +
+    (turn && turn.thought ? "<details><summary>Agent reasoning (" + turn.thought.length + ' characters)</summary><div class="thought">' + hl(clip(turn.thought, 4000)) + "</div></details>" : "") +
     "<pre>" + cmdHTML + "</pre></div>";
   box.innerHTML = html;
 }
@@ -609,9 +609,10 @@ function summaryHTML(): string {
     if (m.scaffold) parts.push(esc(m.scaffold));
   }
   if (v) parts.push(v.pass ? '<span class="pill ok">verdict PASS</span>' : '<span class="pill fail">verdict FAIL</span>');
+  parts.push('<span class="muted" title="Trajectory schema, detected from the file">' + esc(tr.schema.label) + "</span>");
   parts.push(tr.turns.size + " turns · " + tr.steps.length + " lines" + (tr.bad ? " · " + tr.bad + " unreadable" : ""));
   const timings = m && (m.timings as Record<string, unknown> | undefined);
-  if (timings && typeof timings.total_s === "number") parts.push(Math.round(timings.total_s / 60) + " min");
+  if (timings && typeof timings.total_s === "number") parts.push(timings.total_s < 90 ? Math.round(timings.total_s) + " s" : Math.round(timings.total_s / 60) + " min");
   parts.push('<span class="pill w">✎ ' + writes + " steps wrote " + st.linked + "/" + st.lines + " +/− lines</span>");
   return '<div class="traj-summary">' + parts.map((p) => "<span>" + p + "</span>").join("") + "</div>";
 }
@@ -641,9 +642,9 @@ const Table = {
       this.render();
     });
     this.box.addEventListener("click", (e) => {
-      const tr = (e.target as HTMLElement).closest<HTMLElement>("tr[data-line]");
+      const tr = (e.target as HTMLElement).closest<HTMLElement>("tr[data-idx]");
       if (!tr) return;
-      const s = S.tr!.steps[+tr.dataset.line! - 1];
+      const s = S.tr!.steps[+tr.dataset.idx!];
       this.select(s);
       if ((e.target as HTMLElement).closest("[data-w]")) jumpPatchToStep(s);
     });
@@ -669,7 +670,7 @@ const Table = {
   },
   rowHTML(s: Step): string {
     const h = this.hits(s);
-    return '<tr data-line="' + s.line + '" class="' + (this.sel === s ? "sel " : "") + (this.linked === s ? "linked" : "") + '">' +
+    return '<tr data-idx="' + s.index + '" class="' + (this.sel === s ? "sel " : "") + (this.linked === s ? "linked" : "") + '">' +
       "<td>" + s.line + "</td><td>" + (s.seq ?? "") + "</td><td>" + (s.turn != null ? '<span class="tag" style="background:' + turnColor(s.turn) + ';color:#111">T' + s.turn + "</span>" : "") + "</td>" +
       '<td><span class="tag r-' + s.role + '">' + s.role + "</span></td>" +
       '<td class="sum">' + hl(clip(this.summary(s), 220)) + "</td><td>" + (s.exit ?? "") + "</td><td>" + fmtMs(s.latencyMs) + "</td>" +
@@ -687,7 +688,7 @@ const Table = {
     this.renderDetail();
   },
   renderRow(s: Step): void {
-    const el = this.box?.querySelector('tr[data-line="' + s.line + '"]');
+    const el = this.box?.querySelector('tr[data-idx="' + s.index + '"]');
     if (el) el.outerHTML = this.rowHTML(s);
   },
   renderDetail(): void {
@@ -726,7 +727,7 @@ const Table = {
       document.querySelectorAll<HTMLElement>(".tbl-tools button").forEach((x) => x.classList.toggle("on", x.dataset.f === "all"));
       this.render();
     } else this.renderRow(s);
-    const el = this.box?.querySelector<HTMLElement>('tr[data-line="' + s.line + '"]');
+    const el = this.box?.querySelector<HTMLElement>('tr[data-idx="' + s.index + '"]');
     if (scroll && el && this.box) this.box.scrollTop = el.offsetTop - this.box.clientHeight / 3;
     this.renderDetail();
   },

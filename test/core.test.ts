@@ -2,7 +2,8 @@ import { describe as suite, expect, it } from "vitest";
 import { describe, parsePatch, rangeText, sideBySide } from "../src/core/patch";
 import { fieldPath, fields, link, locateInCommand, parseTrajectory, stepLabel } from "../src/core/trajectory";
 import { fileLineOf, fileLineReference, lineCol, makeReference, patchLineReference, referenceText, rowPosition } from "../src/core/reference";
-import { PATCH, TRAJECTORY } from "./fixtures";
+import { relPath, renderToolCall } from "../src/core/schemas/claudeCode";
+import { CLAUDE_STREAM, CLAUDE_TRAJECTORY, PATCH, TRAJECTORY } from "./fixtures";
 
 const rowOf = (pm: ReturnType<typeof parsePatch>, text: string) => {
   const L = pm.lines.find((l) => l.text === text);
@@ -116,6 +117,81 @@ suite("trajectory", () => {
     expect(fieldPath(model, "thought")).toBe("payload.thought");
     expect(fieldPath(tr.steps[9], "output")).toBe("output");
     expect(stepLabel(tr.steps[4])).toBe("turn 2 · command");
+  });
+
+  it("detects the harness schema", () => {
+    expect(tr.schema.id).toBe("harness-jsonl");
+    expect(tr.steps.map((s) => s.index)).toEqual(tr.steps.map((_, i) => i));
+  });
+});
+
+suite("claude code schema", () => {
+  const pm = parsePatch(PATCH);
+  const tr = parseTrajectory(CLAUDE_TRAJECTORY);
+
+  it("is detected and builds the run metadata", () => {
+    expect(tr.schema.id).toBe("claude-code");
+    expect(tr.manifest).toMatchObject({
+      run_id: "sess-0001", model: "claude-example", scaffold: "Claude Code 2.0.0",
+      task_title: "Validate the name in greet() and add a README.", git_branch: "main",
+    });
+    expect(tr.bad).toBe(0);
+  });
+
+  it("groups the lines of one response into a turn", () => {
+    expect(tr.steps.map((s) => s.role)).toEqual(["event", "event", "model", "cmd", "event", "model", "cmd", "event", "model", "cmd", "event", "model"]);
+    expect(tr.turns.size).toBe(4);
+    expect(tr.turns.get(1)?.thought).toBe("I should inspect src/greeter.py first.");
+    expect(tr.turns.get(2)?.cmds.map((s) => s.tool)).toEqual(["Edit"]);
+    expect(tr.steps[2].tokIn).toBe(100);
+    expect(tr.steps[3].tokIn).toBeNull();
+    expect(tr.steps.filter((s) => s.isWrite).map((s) => s.tool)).toEqual(["Edit", "Write"]);
+  });
+
+  it("pairs tool results with their call", () => {
+    const res = tr.steps[7];
+    expect(res.event).toBe("tool result · Edit");
+    expect(res.turn).toBe(2);
+    expect(res.output).toBe("The file was updated.");
+    expect(tr.steps[6].exit).toBe(0);
+    expect(fieldPath(res, "output")).toBe("message.content[0].content");
+    expect(fieldPath(tr.steps[2], "thought")).toBe("message.content[0].thinking");
+    expect(stepLabel(tr.steps[6])).toBe("turn 2 · Edit");
+  });
+
+  it("links patch lines to Edit and Write calls", () => {
+    const res = link(pm, tr);
+    const edit = tr.steps[6], write = tr.steps[9];
+    for (const t of ['-    return "Hello " + name', "+    if not name:", '+        raise ValueError("name must not be empty")', '+    return f"Hello, {name}!"']) {
+      expect(res.origins.get(rowOf(pm, t))?.step).toBe(edit);
+    }
+    expect(res.origins.get(rowOf(pm, "+# Greeter"))?.step).toBe(write);
+    expect(res.stats).toEqual({ lines: 7, linked: 6, inferred: 0 });
+    expect(edit.writesFiles.map((f) => f.path)).toEqual(["src/greeter.py"]);
+    expect(res.fileSteps.get(pm.files[0])?.map((s) => s.tool)).toEqual(["Read", "Edit"]);
+  });
+
+  it("reads stream-json output", () => {
+    const st = parseTrajectory(CLAUDE_STREAM);
+    expect(st.schema.id).toBe("claude-code");
+    expect(st.manifest).toMatchObject({ run_id: "sess-0002", scaffold: "Claude Code 2.0.0", timings: { total_s: 4 }, cost_usd: 0.01 });
+    expect(st.steps.map((s) => s.role)).toEqual(["event", "model", "cmd", "event", "event"]);
+    expect(st.steps[2].isWrite).toBe(true);
+    expect(st.steps[1].line).toBe(st.steps[2].line);
+    const denied = parseTrajectory(CLAUDE_STREAM.replace('{"type":"user"',
+      '{"type":"system","subtype":"permission_denied","tool_use_id":"tu_a","message":"needs approval"}\n{"type":"user"'));
+    expect(denied.steps[3]).toMatchObject({ event: "system · permission_denied", text: "needs approval", turn: 1 });
+    const hidden = parseTrajectory(JSON.stringify({ type: "assistant", message: { id: "m", content: [{ type: "thinking", thinking: "", signature: "x" }] } }));
+    expect(hidden.steps[0].thought).toBe("(reasoning not included in the transcript)");
+    expect(link(pm, st).stats.linked).toBe(2);
+  });
+
+  it("renders tool calls with relative, forward-slash paths", () => {
+    expect(relPath("C:\\Work\\greeter\\src\\a.py", "c:\\work\\greeter")).toBe("src/a.py");
+    expect(relPath("/tmp/x.py", "/work")).toBe("/tmp/x.py");
+    expect(renderToolCall("MultiEdit", { file_path: "/w/a.py", edits: [{ old_string: "a", new_string: "b" }] }, "/w"))
+      .toBe("MultiEdit a.py\n<<<<<<< old_string\na\n=======\nb\n>>>>>>> new_string");
+    expect(renderToolCall("Grep", { pattern: "x" }, null)).toBe('Grep {"pattern":"x"}');
   });
 });
 

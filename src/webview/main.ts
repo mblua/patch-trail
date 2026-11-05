@@ -234,6 +234,19 @@ function renderRows(force = false): void {
   for (let i = first; i < last; i++) html += lineHTML(S.pm.lines[i]);
   rows.innerHTML = html;
 }
+/**
+ * Moves the cursor and the "same turn" highlight on the rows already in the DOM.
+ * Rebuilding them would replace the text under the mouse and break double-click word selection.
+ */
+function markRows(): void {
+  if (!S.pm) return;
+  const run = originOf(line(ui.row))?.step;
+  document.querySelectorAll<HTMLElement>("#rows .ln").forEach((el) => {
+    const L = line(+el.dataset.row!);
+    el.classList.toggle("cur", L.row === ui.row);
+    el.classList.toggle("linkrun", !!run && originOf(L)?.step === run);
+  });
+}
 function setupSpacer(): void {
   if (!S.pm) return;
   const maxLen = S.pm.lines.reduce((m, L) => Math.max(m, L.text.length), 0);
@@ -257,7 +270,7 @@ function setRow(r: number, opts: { center?: boolean; fromTraj?: boolean } = {}):
   ui.row = r;
   persist();
   if (ui.showPatch) revealRow(r, opts.center);
-  renderRows(true);
+  markRows();
   updatePatchPanels(opts);
 }
 function hunkNav(dir: number): void {

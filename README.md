@@ -8,7 +8,8 @@ agent's trajectory (`.jsonl`).
   number for context lines. The strip under the patch hides or shows each gutter column
   (`#` patch row, `a/b` file line, `T` turn) and shows the cursor position.
 - **Agent blame**: every `+`/`−` line carries a chip with the agent turn that wrote it
-  (same color = same turn). The *Why this line exists* panel shows the agent's message,
+  (same color = same turn); while you scroll through a long run of lines from one turn, its chip
+  stays pinned at the top. The *Why this line exists* panel shows the agent's message,
   its reasoning and the exact command, with the line highlighted.
 - **Trajectory table**: every step of the trajectory, filterable (model, commands, steps that
   wrote the patch, steps with search matches), with the full step below.

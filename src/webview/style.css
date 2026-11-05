@@ -103,6 +103,12 @@ a:hover { text-decoration: underline; }
 .ln.cur .g-file { font-weight: 600; }
 .ln.cur .g-file:not(.old):not(.new):not(.hk) { color: var(--gutter-active); }
 
+/* the turn chip of a run whose first row scrolled away, pinned at the top of the patch */
+.sticky-turn { position: absolute; top: 0; height: 20px; z-index: 5; display: flex; background: var(--bg); box-shadow: 0 2px 4px var(--shadow); font-family: var(--mono); line-height: 20px; }
+.sticky-turn[hidden] { display: none; }
+.sticky-turn .g-blame { height: 20px; border-right: 0; margin-right: 0; }
+.sticky-turn .chip { cursor: pointer; }
+
 /* under the patch: one button per gutter column, then the cursor position */
 .colbar { position: absolute; left: 0; right: 0; bottom: 0; height: 23px; display: flex; align-items: stretch; background: var(--panel-bg); border-top: 1px solid var(--border); overflow: hidden; }
 .colbar button { flex-shrink: 0; background: none; border: 0; border-right: 1px solid var(--border); color: var(--fg); font: 11px var(--mono); cursor: pointer; padding: 0 8px; text-align: right; white-space: nowrap; }

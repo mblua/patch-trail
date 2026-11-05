@@ -111,6 +111,7 @@ $("#app").innerHTML = `
       <div class="patch-content" id="patch-content">
         <div class="editor-wrap">
           <div class="find" id="find-patch"></div>
+          <div class="sticky-turn" id="sticky-turn" hidden></div>
           <div class="editor" id="editor" tabindex="0"><div class="spacer" id="spacer"><div class="rows" id="rows"></div></div></div>
           <div class="colbar" id="colbar"></div>
         </div>
@@ -316,6 +317,7 @@ function renderRows(force = false): void {
   let html = "";
   for (let i = first; i < last; i++) html += lineHTML(S.pm.lines[i]);
   rows.innerHTML = html;
+  updateStickyTurn();
 }
 /**
  * Moves the cursor and the "same turn" highlight on the rows already in the DOM.
@@ -337,7 +339,54 @@ function setupSpacer(): void {
   sp.style.height = S.pm.lines.length * ROW_H + "px";
   sp.style.width = "calc(" + Math.min(maxLen, 2000) + "ch + 200px)";
 }
-editor.addEventListener("scroll", () => renderRows(), { passive: true });
+editor.addEventListener("scroll", () => { renderRows(); updateStickyTurn(); }, { passive: true });
+
+// ---------------------------------------------------------------- sticky turn chip
+// A turn chip only sits on the first row of a run of +/- lines written by the same step.
+// While the run continues below the top edge, the chip stays pinned at the top of the patch;
+// the last row of the run pushes it up as it scrolls away.
+const sameRun = (a: PatchLine, b: PatchLine) =>
+  (a.kind === "add" || a.kind === "del") && (b.kind === "add" || b.kind === "del") && !!originOf(a) && originOf(a)?.step === originOf(b)?.step;
+/** Patch row of the pinned run start, and the cache key of what the chip shows. */
+let stickyRow = 0, stickyKey = "";
+function updateStickyTurn(): void {
+  const el = $("#sticky-turn");
+  const hide = () => { el.hidden = true; stickyRow = 0; };
+  if (!S.pm || !S.links || ui.hiddenCols.includes("turn") || !S.pm.lines.length) return hide();
+  const n = S.pm.lines.length;
+  const top = Math.min(n, Math.floor(editor.scrollTop / ROW_H) + 1);
+  const T = line(top), o = originOf(T);
+  if (!o || (T.kind !== "add" && T.kind !== "del")) return hide();
+  let start = top;
+  while (start > 1 && sameRun(line(start - 1), T)) start--;
+  // the real chip is fully visible: nothing to pin
+  if ((start - 1) * ROW_H >= editor.scrollTop) return hide();
+  let end = top;
+  while (end < n && sameRun(line(end + 1), T)) end++;
+  const gb = document.querySelector<HTMLElement>("#rows .g-blame");
+  if (!gb) return hide();
+  const wrap = el.parentElement!.getBoundingClientRect();
+  const left = gb.getBoundingClientRect().left - wrap.left;
+  if (left < 0) return hide();
+  const so = originOf(line(start)) ?? o;
+  const c = turnColor(so.step.turn ?? 0);
+  stickyRow = start;
+  const key = start + ":" + so.step.line + ":" + so.inferred;
+  if (stickyKey !== key) {
+    stickyKey = key;
+    el.innerHTML = '<span class="g-blame"><span class="bar" style="background:' + c + '"></span><span class="chip' + (so.inferred ? " inf" : "") +
+      '" style="background:' + c + '" title="Written in agent turn ' + so.step.turn + " (line " + so.step.line + " of the trajectory) · rows " + start + "-" + end + ' of the patch">T' + so.step.turn + "</span></span>";
+  }
+  el.style.left = left + "px";
+  el.style.top = Math.min(0, end * ROW_H - editor.scrollTop - ROW_H) + "px";
+  el.hidden = false;
+}
+$("#sticky-turn").addEventListener("mousedown", (e) => {
+  if (e.button !== 0 || !stickyRow) return;
+  e.preventDefault();
+  const L = line(stickyRow), o = originOf(L);
+  if (o) { if (!ui.showTraj) toggle("traj", true); Table.reveal(o.step, L); }
+});
 new ResizeObserver(() => renderRows()).observe(editor);
 
 function revealRow(r: number, center = false): void {

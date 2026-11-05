@@ -1,8 +1,14 @@
 # Patch Trail
 
 A VS Code extension for reviewing a `.patch` produced by a coding agent together with the
-agent's trajectory (`.jsonl`): Claude Code sessions and harness exports are supported (see
-[Trajectory schemas](#trajectory-schemas)).
+agent's trajectory (`.jsonl`): every changed line shows its real line number in the file and the
+agent turn that wrote it.
+
+![Patch Trail reviewing a Claude Code session: real line numbers, agent blame per line, the trajectory table and copied references](media/demo.gif)
+
+> **Supported trajectory formats (for now):** [Claude Code sessions](#claude-code-session) and
+> [Harness JSONL](#harness-jsonl). Other agents (Codex, OpenHands, mini-swe-agent's `.traj.json`, …)
+> are not read yet; see [Adding a schema](#adding-a-schema).
 
 - **Real line numbers**: next to every row of the patch, its line in the file: `a 29` for a
   removed line (original file, `a/`), `b 29` for an added line (new file, `b/`), the plain
@@ -77,7 +83,7 @@ To always open patches in Patch Trail, add this to your settings:
 
 Every coding agent writes its trajectory in its own format. Patch Trail reads each format with a
 **schema** and detects the right one from the first lines of the file (the trajectory pane shows
-which one it used). Supported schemas:
+which one it used). Two schemas are supported today:
 
 ### Claude Code session
 
@@ -96,12 +102,12 @@ To get a patch for a session, run `git diff` in the repository the agent changed
 
 ### Harness JSONL
 
-One JSON object per line, as exported by evaluation harnesses that run a shell-only agent:
+A generic layout for runs of a shell-only agent, one JSON object per line:
 
 - `{"type": "manifest", ...}`: run metadata (`task_title`, `model`, `scaffold`, `run_id`, `timings`).
 - `{"type": "step", "seq": n, "payload": {"step": "model:N", "text": "...", "thought": "..."}}`: an agent turn.
 - `{"type": "step", "payload": {"step": "model:N:bash", "command": "...", "output": "...", "exit_code": 0}}`: a command of turn N.
-- `{"type": "verdict", "pass": true, "output": "..."}`: the grading result.
+- `{"type": "verdict", "pass": true, "output": "..."}`: the final result of the run.
 
 Other lines are shown as events.
 

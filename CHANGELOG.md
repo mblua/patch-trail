@@ -8,6 +8,7 @@
   and results; lines written with `Write` / `Edit` / `MultiEdit` / `NotebookEdit` are attributed
   to their turn.
 - The trajectory summary shows the schema in use; short runs show their length in seconds.
+- README: animated demo of a Claude Code session and the list of supported trajectory formats.
 
 ## 0.1.0
 

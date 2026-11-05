@@ -1,4 +1,4 @@
-// Evaluation harness export: one JSON object per line, {"type": "manifest" | "step" | "verdict"}.
+// Harness JSONL: one JSON object per line, {"type": "manifest" | "step" | "verdict"}.
 // Agent turns are steps named "model:N"; the shell commands of turn N are "model:N:bash".
 
 import { badStep, isObj, newStep, num, str, WRITE_RE, type Step, type TrajectorySchema } from "./types";

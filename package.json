@@ -3,7 +3,7 @@
   "displayName": "Patch Trail",
   "description": "Read a coding agent's .patch with real old/new line numbers and blame every line to the trajectory step that wrote it.",
   "version": "0.1.0",
-  "publisher": "mblua",
+  "publisher": "MarianoBlua",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -36,7 +36,7 @@ const session = (file: string) => api.sessions().find((x) => x.patch === vscode.
 const currentSession = () => api.sessions().find((x) => x.current);
 
 test("activates and registers its commands", async () => {
-  const ext = vscode.extensions.getExtension<PatchTrailApi>("mblua.patch-trail");
+  const ext = vscode.extensions.getExtension<PatchTrailApi>("MarianoBlua.patch-trail");
   assert.ok(ext, "extension not found");
   api = await ext.activate();
   const cmds = await vscode.commands.getCommands(true);
@@ -124,7 +124,7 @@ test("editor-only commands run without errors", async () => {
 });
 
 test("the row context menu command copies the short file line reference", async () => {
-  const pkg = vscode.extensions.all.find((e) => e.id.toLowerCase() === "mblua.patch-trail")!.packageJSON;
+  const pkg = vscode.extensions.all.find((e) => e.id.toLowerCase() === "marianoblua.patch-trail")!.packageJSON;
   const item = pkg.contributes.menus["webview/context"].find((m: { command: string }) => m.command === "patchTrail.copyRowReference");
   if (!item || !String(item.when).includes("webviewSection == 'patchRow'")) throw new Error("webview/context entry missing");
   await vscode.commands.executeCommand("patchTrail.copyRowReference", { webviewSection: "patchRow", ref: "src/greeter.py:4 (patch)" });
